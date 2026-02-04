@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="he">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wand Dashboard — Magic Pen</title>
+
+  <style>
+    :root{
+      --bg1:#050816; --bg2:#0b1020; --bg3:#070a14;
+      --panel: rgba(255,255,255,0.06);
+      --panel2: rgba(255,255,255,0.09);
+      --stroke: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --good: #22c55e;
+      --bad: #ef4444;
+      --warn: #f59e0b;
+      --shadow: 0 18px 55px rgba(0,0,0,0.40);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; color:var(--text); font-family:var(--sans);
+      background:
+        radial-gradient(1200px 800px at 10% 10%, rgba(124,58,237,0.35), transparent 60%),
+        radial-gradient(1000px 700px at 90% 20%, rgba(6,182,212,0.22), transparent 60%),
+        radial-gradient(900px 700px at 60% 90%, rgba(34,197,94,0.14), transparent 60%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
+    }
+
+    .container{ max-width:1280px; margin:0 auto; padding:18px 16px 26px; }
+    .topbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:14px; }
+    .title{ display:flex; flex-direction:column; gap:3px; }
+    .title h1{ margin:0; font-size:18px; font-weight:800; letter-spacing:.2px; }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:8px; padding:8px 12px;
+      border-radius:999px; background:var(--panel); border:1px solid var(--stroke);
+      box-shadow:var(--shadow); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-size:12px; color:var(--muted); white-space:nowrap;
+    }
+    .dot{ width:10px; height:10px; border-radius:50%; background:var(--bad); box-shadow:0 0 0 3px rgba(239,68,68,0.18); }
+    .dot.ok{ background:var(--good); box-shadow:0 0 0 3px rgba(34,197,94,0.18); }
+    .dot.warn{ background:var(--warn); box-shadow:0 0 0 3px rgba(245,158,11,0.18); }
+
+    .grid{ display:grid; grid-template-columns: 1.45fr 0.55fr; gap:14px; }
+    @media (max-width: 1050px){ .grid{ grid-template-columns:1fr; } }
+
+    .card{
+      background:var(--panel); border:1px solid var(--stroke); border-radius:var(--radius);
+      box-shadow:var(--shadow); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      overflow:hidden;
+    }
+    .cardHeader{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 14px 10px; border-bottom:1px solid var(--stroke); gap:10px; flex-wrap:wrap;
+    }
+    .cardHeader .h{ font-size:13px; font-weight:800; color: rgba(255,255,255,0.90); }
+    .cardHeader .hint{ font-size:11px; color:var(--muted); }
+    .cardBody{ padding:14px; }
+
+    .btnRow{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:flex-end; }
+    .btn{
+      appearance:none; border:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+      color: rgba(255,255,255,0.90);
+      padding:9px 12px; border-radius:12px; cursor:pointer;
+      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      font-size:12px; font-weight:750;
+    }
+    .btn:hover{ border-color: rgba(255,255,255,0.20); }
+    .btn:active{ transform: scale(0.98); }
+    .btn.primary{ border-color: rgba(124,58,237,0.35); background: linear-gradient(180deg, rgba(124,58,237,0.35), rgba(6,182,212,0.12)); }
+    .btn.danger{ border-color: rgba(239,68,68,0.35); background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(255,255,255,0.05)); }
+    .btn.good{ border-color: rgba(34,197,94,0.35); background: linear-gradient(180deg, rgba(34,197,94,0.22), rgba(255,255,255,0.05)); }
+    .btn.ghost{ background:transparent; }
+
+    .canvasWrap{
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border:1px solid var(--stroke); border-radius:16px; padding:10px;
+    }
+    canvas{ width:100%; height:auto; display:block; border-radius:12px; }
+
+    .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media (max-width: 520px){ .row2{ grid-template-columns:1fr; } }
+    .control{ background:var(--panel2); border:1px solid var(--stroke); border-radius:14px; padding:10px; }
+    .control .label{ display:flex; justify-content:space-between; gap:10px; font-size:11px; color:var(--muted); margin-bottom:8px; }
+    .control input[type="range"]{ width:100%; }
+
+    details{ margin-top:10px; background: rgba(0,0,0,0.20); border:1px solid var(--stroke); border-radius:14px; padding:10px 12px; }
+    summary{ cursor:pointer; color: rgba(255,255,255,0.88); font-size:12px; font-weight:800; list-style:none; }
+    summary::-webkit-details-marker{ display:none; }
+    pre{
+      margin:10px 0 0; padding:10px 12px; border-radius:12px;
+      background: rgba(0,0,0,0.35); border:1px solid var(--stroke);
+      overflow:auto; color: rgba(255,255,255,0.88);
+      font-family: var(--mono); font-size: 11px; line-height: 1.35; max-height: 260px;
+    }
+
+    .badge{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--stroke); background: rgba(0,0,0,0.18);
+      font-size: 12px; font-weight: 800;
+    }
+    .badge .mini{ width:8px; height:8px; border-radius:50%; background: var(--muted); }
+    .badge.rec .mini{ background: var(--bad); box-shadow:0 0 0 3px rgba(239,68,68,0.18); }
+    .badge.idle .mini{ background: var(--muted); }
+
+    .sessions{ display:flex; flex-direction:column; gap:8px; max-height: 260px; overflow:auto; padding-right:4px; }
+    .sess{
+      border:1px solid var(--stroke); border-radius: 14px; background: rgba(0,0,0,0.18);
+      padding: 10px;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .sessTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .sessId{ font-family: var(--mono); font-weight:800; font-size: 12px; }
+    .sessMeta{ font-size: 11px; color: var(--muted); font-family: var(--mono); }
+    .sessBtns{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .miniBtn{
+      padding:6px 9px; border-radius:10px; font-size:11px; font-weight:800;
+      border:1px solid var(--stroke); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9);
+      cursor:pointer;
+    }
+    .miniBtn:hover{ border-color: rgba(255,255,255,0.20); }
+    .miniBtn:active{ transform: scale(0.99); }
+
+    .threeWrap{
+      border:1px solid var(--stroke); border-radius: 16px; padding:10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    }
+    #three{ width:100%; height: 240px; border-radius: 12px; display:block; background: rgba(0,0,0,0.08); }
+
+    .stats{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+      grid-auto-rows: 1fr;
+    }
+
+    .stat{
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      min-height: 92px;
+      background:var(--panel2);
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      padding:10px;
+    }
+
+    .stat .k{
+      font-size:11px;
+      color:var(--muted);
+      margin-bottom:6px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .stat .v{
+      font-family: var(--mono);
+      font-size:12px;
+      color: rgba(255,255,255,0.92);
+    }
+
+    #wsFull{
+      white-space: normal;
+      overflow:hidden;
+      display:-webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-all;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="title">
+        <h1>Wand Dashboard — Magic Pen</h1>
+      </div>
+      <div class="pill">
+        <span class="dot" id="dot"></span>
+        <span id="connText">disconnected</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="cardHeader">
+          <div>
+            <div class="h">Laser Canvas</div>
+            <div class="hint">לחיצה = ציור, שחרור = עצירה | Reset = ניקוי</div>
+          </div>
+          <div class="btnRow">
+            <span class="badge idle" id="recBadge"><span class="mini"></span><span id="recText">IDLE</span></span>
+            <button class="btn primary" id="centerBtn">Center</button>
+            <button class="btn danger" id="clearBtn">Clear</button>
+            <button class="btn good" id="exportBtn">Export PNG</button>
+            <button class="btn ghost" id="demoBtn">Demo: OFF</button>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="canvasWrap">
+            <canvas id="cv" width="1200" height="650"></canvas>
+          </div>
+
+          <div class="row2" style="margin-top:12px;">
+            <div class="control">
+              <div class="label"><span>Sensitivity</span><span id="sensVal">900</span></div>
+              <input id="sens" type="range" min="200" max="2600" step="25" value="900">
+            </div>
+            <div class="control">
+              <div class="label"><span>Glow</span><span id="glowVal">16</span></div>
+              <input id="glow" type="range" min="0" max="40" step="1" value="16">
+            </div>
+          </div>
+
+          <div class="row2" style="margin-top:10px;">
+            <div class="control">
+              <div class="label"><span>Width by speed</span><span id="wbsVal">ON</span></div>
+              <input id="wbs" type="range" min="0" max="1" step="1" value="1">
+            </div>
+            <div class="control">
+              <div class="label"><span>Axis invert</span><span id="axisVal">X=INV, Y=INV</span></div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn" id="flipXBtn">Flip X</button>
+                <button class="btn" id="flipYBtn">Flip Y</button>
+                <button class="btn" id="flipZBtn">Flip Z</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardHeader">
+          <div>
+            <div class="h">Live Status + 3D</div>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="stats">
+            <div class="stat">
+              <div class="k">
+                <span>WebSocket</span><span id="wsShort">—</span>
+              </div>
+              <div class="v" id="wsFull">—</div>
+            </div>
+
+            <div class="stat">
+              <div class="k">
+                <span>RAW rate</span><span>msg/s</span>
+              </div>
+              <div class="v"><span id="rate">0</span></div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;" class="threeWrap">
+            <canvas id="three"></canvas>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="stat" style="min-height:auto;">
+              <div class="k">
+                <span>Sessions</span><span id="sessCount">0</span>
+              </div>
+              <div class="sessions" id="sessions"></div>
+            </div>
+          </div>
+
+          <details>
+            <summary>Debug JSON</summary>
+            <pre id="dbg">{}</pre>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const WS_URL = "wss://jcdgiqkfsh.execute-api.us-east-1.amazonaws.com/production";
+
+    const dot = document.getElementById("dot");
+    const connText = document.getElementById("connText");
+    const wsShort = document.getElementById("wsShort");
+    const wsFull = document.getElementById("wsFull");
+
+    const recBadge = document.getElementById("recBadge");
+    const recText = document.getElementById("recText");
+
+    const rateEl = document.getElementById("rate");
+    const dbgEl = document.getElementById("dbg");
+
+    const cv = document.getElementById("cv");
+    const ctx = cv.getContext("2d");
+
+    const clearBtn = document.getElementById("clearBtn");
+    const centerBtn = document.getElementById("centerBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const demoBtn = document.getElementById("demoBtn");
+
+    const sensSlider = document.getElementById("sens");
+    const glowSlider = document.getElementById("glow");
+    const wbsSlider = document.getElementById("wbs");
+    const flipXBtn = document.getElementById("flipXBtn");
+    const flipYBtn = document.getElementById("flipYBtn");
+    const flipZBtn = document.getElementById("flipZBtn");
+
+    const sensVal = document.getElementById("sensVal");
+    const glowVal = document.getElementById("glowVal");
+    const wbsVal = document.getElementById("wbsVal");
+    const axisVal = document.getElementById("axisVal");
+
+    const sessionsEl = document.getElementById("sessions");
+    const sessCountEl = document.getElementById("sessCount");
+
+    wsFull.textContent = WS_URL;
+    wsShort.textContent = "prod";
+
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const nowMs = () => Date.now();
+    const randHex = () => Math.random().toString(16).slice(2, 8);
+
+    function setConn(state){
+      if (state === "ok"){ dot.className="dot ok"; connText.textContent="connected"; }
+      else if (state === "warn"){ dot.className="dot warn"; connText.textContent="connecting"; }
+      else { dot.className="dot"; connText.textContent="disconnected"; }
+    }
+
+    let penDown = false;
+    let sessionId = null;
+    let sessionStartMs = null;
+    let points = [];
+    let sessions = [];
+    let rafReplay = null;
+
+    function setRecording(on){
+      recBadge.className = on ? "badge rec" : "badge idle";
+      recText.textContent = on ? "RECORDING" : "IDLE";
+    }
+
+    let x = cv.width/2, y = cv.height/2;
+    let lastX = x, lastY = y;
+    let lastDrawT = null;
+
+    function startStroke(){
+      sessionId = randHex();
+      sessionStartMs = nowMs();
+      points = [];
+      penDown = true;
+      setRecording(true);
+
+      lastX = x;
+      lastY = y;
+      lastDrawT = null;
+    }
+
+    function endStroke(){
+      penDown = false;
+      setRecording(false);
+
+      const dur = sessionStartMs ? (nowMs() - sessionStartMs) : 0;
+      const meta = {
+        id: sessionId ?? randHex(),
+        start: sessionStartMs ?? nowMs(),
+        durMs: dur,
+        points: points.slice(0)
+      };
+      sessions.unshift(meta);
+      sessions = sessions.slice(0, 10);
+      renderSessions();
+
+      sessionId = null;
+      sessionStartMs = null;
+
+      lastX = x;
+      lastY = y;
+      lastDrawT = null;
+    }
+
+    function renderSessions(){
+      sessionsEl.innerHTML = "";
+      sessCountEl.textContent = String(sessions.length);
+      if (sessions.length === 0) return;
+
+      for (const s of sessions){
+        const item = document.createElement("div");
+        item.className = "sess";
+        const pts = s.points.length;
+        const dur = Math.max(0, Math.round(s.durMs));
+        item.innerHTML = `
+          <div class="sessTop">
+            <div class="sessId">#${s.id}</div>
+            <div class="sessMeta">${pts} נק' | ${dur}ms</div>
+          </div>
+          <div class="sessBtns">
+            <button class="miniBtn" data-act="replay" data-id="${s.id}">Replay</button>
+            <button class="miniBtn" data-act="export" data-id="${s.id}">Export JSON</button>
+            <button class="miniBtn" data-act="delete" data-id="${s.id}">Delete</button>
+          </div>
+        `;
+        sessionsEl.appendChild(item);
+      }
+
+      sessionsEl.querySelectorAll("button.miniBtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const act = btn.getAttribute("data-act");
+          const id = btn.getAttribute("data-id");
+          const s = sessions.find(x => x.id === id);
+          if (!s) return;
+
+          if (act === "delete"){
+            sessions = sessions.filter(x => x.id !== id);
+            renderSessions();
+            return;
+          }
+          if (act === "export"){
+            const blob = new Blob([JSON.stringify(s, null, 2)], {type:"application/json"});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `wand_session_${s.id}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            return;
+          }
+          if (act === "replay"){
+            replaySession(s);
+            return;
+          }
+        });
+      });
+    }
+    renderSessions();
+
+    function replaySession(s){
+      if (rafReplay) cancelAnimationFrame(rafReplay);
+      resetLaser(true);
+      clearCanvas(true);
+
+      const pts = s.points;
+      if (!pts || pts.length < 2) return;
+
+      let i = 1;
+      const t0 = pts[0].t;
+      const start = performance.now();
+
+      const step = () => {
+        const elapsed = performance.now() - start;
+        while (i < pts.length && (pts[i].t - t0) <= elapsed) {
+          const p0 = pts[i-1], p1 = pts[i];
+          drawLaserSegment(p0.x, p0.y, p1.x, p1.y, 2.5, 0.55, p1.t);
+          i++;
+        }
+        if (i < pts.length) rafReplay = requestAnimationFrame(step);
+      };
+      rafReplay = requestAnimationFrame(step);
+    }
+
+    let SENS = parseFloat(sensSlider.value);
+    const ALPHA = 0.98;
+    let GLOW = parseInt(glowSlider.value, 10);
+    let WIDTH_BY_SPEED = (parseInt(wbsSlider.value, 10) === 1);
+
+    let flipX = true;
+    let flipY = true;
+    let flipZ = false;
+
+    function syncUI(){
+      sensVal.textContent = String(SENS);
+      glowVal.textContent = String(GLOW);
+      wbsVal.textContent = WIDTH_BY_SPEED ? "ON" : "OFF";
+      axisVal.textContent = `X=${flipX ? "INV" : "NORM"}, Y=${flipY ? "INV" : "NORM"}`;
+    }
+    syncUI();
+
+    sensSlider.oninput = () => { SENS = parseFloat(sensSlider.value); syncUI(); };
+    glowSlider.oninput = () => { GLOW = parseInt(glowSlider.value, 10); syncUI(); };
+    wbsSlider.oninput = () => { WIDTH_BY_SPEED = (parseInt(wbsSlider.value,10)===1); syncUI(); };
+
+    flipXBtn.onclick = () => { flipX = !flipX; syncUI(); };
+    flipYBtn.onclick = () => { flipY = !flipY; syncUI(); };
+    flipZBtn.onclick = () => { flipZ = !flipZ; syncUI(); };
+
+    function clearCanvas(keepBg=false){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.fillStyle = "#0b1020";
+      ctx.fillRect(0,0,cv.width,cv.height);
+      if (!keepBg){
+        ctx.save();
+        ctx.globalAlpha = 0.07;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        const step = 50;
+        for (let x=0; x<=cv.width; x+=step){
+          ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,cv.height); ctx.stroke();
+        }
+        for (let y=0; y<=cv.height; y+=step){
+          ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cv.width,y); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+    clearCanvas();
+
+    let pitch = 0, yaw = 0;
+    let pitch0 = 0, yaw0 = 0;
+    let lastT = null;
+
+    function resetLaser(recenter){
+      if (recenter){
+        x = cv.width/2; y = cv.height/2;
+      }
+      pitch = 0; yaw = 0;
+      pitch0 = pitch; yaw0 = yaw;
+      lastT = null;
+      lastX = x; lastY = y;
+      lastDrawT = null;
+    }
+    function calibrateZero(){
+      pitch0 = pitch;
+      yaw0 = yaw;
+    }
+
+    function hueFromAngles(pitchRad, yawRad){
+      const h = ( (yawRad * 180/Math.PI) * 2 + (pitchRad * 180/Math.PI) * 1 ) % 360;
+      return (h + 360) % 360;
+    }
+
+    function widthFromSpeed(dx, dy, dt){
+      if (!WIDTH_BY_SPEED || !dt || dt <= 0) return 2.4;
+      const v = Math.sqrt(dx*dx + dy*dy) / dt;
+      return clamp(1.6 + v/550, 1.6, 7.0);
+    }
+
+    function drawLaserSegment(x0,y0,x1,y1, baseAlpha, glowAlpha, tMs){
+      const dt = lastDrawT !== null ? clamp((tMs - lastDrawT)/1000, 0.001, 0.1) : 0.02;
+      lastDrawT = tMs;
+
+      const dx = x1-x0, dy = y1-y0;
+      const lw = widthFromSpeed(dx, dy, dt);
+
+      const h = hueFromAngles(pitch, yaw);
+      const core = `hsla(${h}, 100%, 72%, ${baseAlpha})`;
+      const glow = `hsla(${h}, 100%, 62%, ${glowAlpha})`;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = glow;
+      ctx.lineWidth = lw + 6;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.shadowBlur = GLOW;
+      ctx.shadowColor = glow;
+      ctx.beginPath();
+      ctx.moveTo(x0,y0); ctx.lineTo(x1,y1);
+      ctx.stroke();
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = core;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(x0,y0); ctx.lineTo(x1,y1);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function stepFromImu(imu, tsMs){
+      const ax0 = imu.ax ?? 0, ay0 = imu.ay ?? 0, az0 = imu.az ?? 0;
+      const gx0 = imu.gx ?? 0, gz0 = imu.gz ?? 0;
+
+      const az = flipZ ? -az0 : az0;
+      const ax = ax0, ay = ay0;
+
+      if (lastT === null) lastT = tsMs;
+      const dt = clamp((tsMs - lastT)/1000.0, 0.0, 0.05);
+      lastT = tsMs;
+
+      const gx = gx0 * Math.PI / 180.0;
+      const gz = gz0 * Math.PI / 180.0;
+
+      pitch += gx * dt;
+      const pitchAcc = Math.atan2(-ax, Math.sqrt(ay*ay + az*az));
+      pitch = ALPHA * pitch + (1.0 - ALPHA) * pitchAcc;
+
+      yaw += gz * dt;
+
+      const sx = flipX ? -1 : 1;
+      const sy = flipY ? -1 : 1;
+
+      lastX = x; lastY = y;
+      x = cv.width/2  + sx * ((yaw - yaw0) * SENS);
+      y = cv.height/2 + sy * ((pitch - pitch0) * SENS);
+
+      x = clamp(x, 0, cv.width);
+      y = clamp(y, 0, cv.height);
+
+      if (penDown){
+        const tRel = sessionStartMs ? (nowMs() - sessionStartMs) : 0;
+        points.push({x, y, t: tRel});
+        if (points.length > 20000) points.shift();
+        drawLaserSegment(lastX, lastY, x, y, 0.85, 0.50, tsMs);
+      }
+
+      updateThree(pitch, yaw, 0);
+    }
+
+    clearBtn.onclick = () => { clearCanvas(); resetLaser(true); };
+    centerBtn.onclick = () => { resetLaser(true); calibrateZero(); };
+    exportBtn.onclick = () => {
+      const a = document.createElement("a");
+      a.download = `wand_canvas_${Date.now()}.png`;
+      a.href = cv.toDataURL("image/png");
+      a.click();
+    };
+
+    let demoOn = false;
+    let demoTimer = null;
+    let demoT = 0;
+
+    function setDemo(on){
+      demoOn = on;
+      demoBtn.textContent = on ? "Demo: ON" : "Demo: OFF";
+      demoBtn.className = on ? "btn good" : "btn ghost";
+      if (demoTimer){ clearInterval(demoTimer); demoTimer = null; }
+
+      if (on){
+        startStroke();
+        demoT = 0;
+        demoTimer = setInterval(() => {
+          demoT += 20;
+          const t = demoT;
+
+          const gz = 60 * Math.sin(t/600);
+          const gx = 40 * Math.cos(t/700);
+
+          const ax = 0.35 * Math.sin(t/480);
+          const ay = 0.22 * Math.cos(t/530);
+          const az = 0.90;
+
+          const imu = {ax, ay, az, gx, gy:0, gz};
+          stepFromImu(imu, nowMs());
+        }, 20);
+      } else {
+        if (penDown) endStroke();
+      }
+    }
+    demoBtn.onclick = () => setDemo(!demoOn);
+
+    function classify(data){
+      if (data && data.imu && typeof data.seq === "number") return "wand/raw";
+      if (data && typeof data.type === "string") return "wand/event";
+      return "unknown";
+    }
+
+    let rawCount = 0;
+    setInterval(() => { rateEl.textContent = String(rawCount); rawCount = 0; }, 1000);
+
+    setConn("warn");
+    const ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => setConn("ok");
+    ws.onclose = () => setConn("bad");
+    ws.onerror = () => setConn("bad");
+
+    ws.onmessage = (ev) => {
+      let wrapper;
+      try { wrapper = JSON.parse(ev.data); } catch { return; }
+      const data = wrapper && wrapper.data ? wrapper.data : null;
+      const topic = classify(data);
+
+      dbgEl.textContent = JSON.stringify(wrapper, null, 2);
+
+      if (topic === "wand/event"){
+        if (data.type === "press" && data.detail === "btn"){
+          if (demoOn) setDemo(false);
+          if (!penDown) startStroke();
+        }
+
+        if (data.type === "release" && data.detail === "btn"){
+          if (penDown) endStroke();
+        }
+
+        if (data.type === "reset"){
+          if (penDown) endStroke();
+        }
+        return;
+      }
+
+      if (topic === "wand/raw"){
+        rawCount++;
+        const imu = data.imu || {};
+        stepFromImu(imu, typeof data.ts_ms === "number" ? data.ts_ms : nowMs());
+        return;
+      }
+    };
+
+    import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+
+    const threeCanvas = document.getElementById("three");
+    const renderer = new THREE.WebGLRenderer({canvas: threeCanvas, antialias: true, alpha: true});
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(0, 0.6, 2.3);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambient);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(2, 3, 4);
+    scene.add(dir);
+
+    const group = new THREE.Group();
+    scene.add(group);
+
+    const matBody = new THREE.MeshStandardMaterial({color: 0x7c3aed, roughness: 0.35, metalness: 0.25});
+    const matTip  = new THREE.MeshStandardMaterial({color: 0x06b6d4, roughness: 0.25, metalness: 0.35});
+    const matGlow = new THREE.MeshStandardMaterial({color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 0.6});
+
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.10, 1.1, 24), matBody);
+    cyl.rotation.z = Math.PI/2;
+    group.add(cyl);
+
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.25, 24), matTip);
+    tip.position.x = 0.68;
+    tip.rotation.z = -Math.PI/2;
+    group.add(tip);
+
+    const back = new THREE.Mesh(new THREE.SphereGeometry(0.10, 24, 24), matBody);
+    back.position.x = -0.68;
+    group.add(back);
+
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.05, 20, 20), matGlow);
+    led.position.x = 0.76;
+    group.add(led);
+
+    group.rotation.y = 0.2;
+
+    function resizeThree(){
+      const w = threeCanvas.clientWidth;
+      const h = threeCanvas.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener("resize", resizeThree);
+    resizeThree();
+
+    function updateThree(pitchRad, yawRad, rollRad){
+      group.rotation.y = yawRad;
+      group.rotation.z = pitchRad;
+      led.material.emissiveIntensity = penDown ? 1.2 : 0.35;
+    }
+
+    function anim(){
+      renderer.render(scene, camera);
+      requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+
+    setRecording(false);
+    resetLaser(true);
+    calibrateZero();
+    syncUI();
+  </script>
+</body>
+</html>
